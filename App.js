@@ -1,234 +1,479 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, FlatList, ScrollView, Pressable,
   StyleSheet, StatusBar, Platform, Image,
 } from 'react-native';
 
+/* ============ MARCA (HU01) ============ */
 const MARCA = {
   nombre: 'Sabana Market',
   eslogan: 'Lo mejor de la Sabana, en tu bolsillo',
   iniciales: 'SM',
-  logo: require('./sabanamarket.png'), 
-  color1: '#0F766E', 
-  color2: '#F59E0B', 
+  logo: require('./sabanamarket.png'), // pon null para mostrar solo las iniciales
+  color1: '#0F766E', // verde azulado
+  color2: '#F59E0B', // ámbar
 };
 const CATEGORIAS = ['Tecnología', 'Hogar', 'Deporte', 'Mascotas'];
-const ENVIO = 8000;
-const ENVIO_GRATIS_DESDE = 150000;
-const CUPON = { codigo: 'BIENVENIDO10', porcentaje: 0.10 };
 
+/* ============ ENVÍO Y ESTADOS (HU26, HU27) ============ */
+const MUNICIPIOS = ['Mosquera', 'Funza', 'Madrid'];
+const TARIFAS = {
+  Mosquera: { estandar: 6000, expres: 10000 },
+  Funza: { estandar: 8000, expres: 12000 },
+  Madrid: { estandar: 10000, expres: 14000 },
+};
+const PLAZOS = {
+  Mosquera: { estandar: '1 a 2 días', expres: '1 día' },
+  Funza: { estandar: '2 a 3 días', expres: '1 a 2 días' },
+  Madrid: { estandar: '2 a 3 días', expres: '1 a 2 días' },
+};
+const FLUJO = ['Confirmado', 'Preparando', 'En camino', 'Entregado'];
+const REPOSICION = 10; // unidades que agrega la reposición de demostración
+
+/* ============ DATOS INICIALES (HU03, HU21) ============ */
+// El stock vive SOLO en cada variante; el del producto se calcula sumándolas.
+const unica = (id, precio, stock) => [{ id: id + '-U', etiqueta: 'Única', precio, stock }];
 const INICIAL = [
-  { id: 'PROD-001', nombre: 'Audífonos Bluetooth', categoria: 'Tecnología', precio: 89000, stock: 8, descripcion: 'Audífonos inalámbricos con 20 horas de batería.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQBPNTdgTDz4dwl_sZ6pmUP4pyS4Y_jkwpEGbg-ggMKdd2NzDvJDomca8&s=10', ratings: [] },
-  { id: 'PROD-002', nombre: 'Cargador rápido USB-C', categoria: 'Tecnología', precio: 45000, stock: 15, descripcion: 'Cargador de 30W compatible con la mayoría de celulares.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPFstza8zJP1boAEzVSfuyVdGzSNlxR421-11cocSZoLM5Dha2NYAvkHQK&s=10', ratings: [] },
-  { id: 'PROD-003', nombre: 'Mouse inalámbrico', categoria: 'Tecnología', precio: 62000, stock: 0, descripcion: 'Mouse ergonómico silencioso con receptor USB.', imagen: 'https://panamericana.vtexassets.com/arquivos/ids/532180/mouse-inalambrico-1-hora-rat001-negro-6974368773033.jpg?v=638442150952330000', ratings: [] },
-  { id: 'PROD-004', nombre: 'Lámpara LED de escritorio', categoria: 'Hogar', precio: 54000, stock: 10,  descripcion: 'Lámpara con tres niveles de brillo y brazo flexible.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQptVSr_pSVuZ5t-JSiFKI1R3QFR03jNUc3BqlW6IVpyw&s=10', ratings: [] },
-  { id: 'PROD-005', nombre: 'Set de ollas 3 piezas', categoria: 'Hogar', precio: 180000, stock: 4,  descripcion: 'Ollas antiadherentes con tapa de vidrio templado.', imagen: 'https://hogaruniversal.vtexassets.com/arquivos/ids/168503/L72408-OLLA-6-ULTRA-TV-20CM-01.jpg.jpg?v=638824008866670000', ratings: [] },
-  { id: 'PROD-006', nombre: 'Organizador de cocina', categoria: 'Hogar', precio: 32000, stock: 20,  descripcion: 'Organizador de dos niveles para especias y utensilios.', imagen: 'https://exitocol.vteximg.com.br/arquivos/ids/18252234/organizador-especias-cocina-especiero-condimenteros-movible.jpg?v=638188337003430000', ratings: [] },
-  { id: 'PROD-007', nombre: 'Balón de fútbol', categoria: 'Deporte', precio: 75000, stock: 12, descripcion: 'Balón número 5 cosido a máquina, ideal para cancha.', imagen: 'https://deportesregol.com/cdn/shop/files/927201_Balon_Futbol_Golty_Latir_No.jpg?v=1742199984', ratings: [] },
-  { id: 'PROD-008', nombre: 'Cuerda para saltar', categoria: 'Deporte', precio: 18000, stock: 30, descripcion: 'Cuerda ajustable con mangos antideslizantes.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_663959-MLA99632749117_112025-O.webp', ratings: [] },
-  { id: 'PROD-009', nombre: 'Botella térmica 750 ml', categoria: 'Deporte', precio: 48000, stock: 9, descripcion: 'Mantiene el agua fría por 24 horas, acero inoxidable.', imagen: 'https://verdepluma.com.co/cdn/shop/files/06_LIGHT-750-02.webp?v=1791406327&width=720', ratings: [] },
-  { id: 'PROD-010', nombre: 'Cama para perro', categoria: 'Mascotas', precio: 120000, stock: 5,  descripcion: 'Cama acolchada y lavable para perros medianos.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrRlPXHkO5Etn08Z4HpQAuv-xxe56RQimmehu8CO8bDA&s', ratings: [] },
-  { id: 'PROD-011', nombre: 'Rascador para gatos', categoria: 'Mascotas', precio: 95000, stock: 6, descripcion: 'Torre rascadora con plataforma y juguete colgante.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_816118-MCO112925589672_072026-O.webp', ratings: [] },
-  { id: 'PROD-012', nombre: 'Juguete masticable', categoria: 'Mascotas', precio: 15000, stock: 25, descripcion: 'Hueso de caucho resistente para perros activos.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_628827-MCO96981303393_112025-O.webp', ratings: [] },
+  { id: 'PROD-001', nombre: 'Audífonos Bluetooth', marca: 'Sonora', categoria: 'Tecnología', descripcion: 'Audífonos inalámbricos con 20 horas de batería.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQBPNTdgTDz4dwl_sZ6pmUP4pyS4Y_jkwpEGbg-ggMKdd2NzDvJDomca8&s=10', variantes: [
+      { id: 'PROD-001-N', etiqueta: 'Negro', precio: 89000, stock: 5 },
+      { id: 'PROD-001-B', etiqueta: 'Blanco', precio: 89000, stock: 3 },
+      { id: 'PROD-001-A', etiqueta: 'Azul', precio: 95000, stock: 0 },
+    ] },
+  { id: 'PROD-002', nombre: 'Cargador rápido USB-C', marca: 'Voltix', categoria: 'Tecnología', descripcion: 'Cargador de 30W compatible con la mayoría de celulares.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPFstza8zJP1boAEzVSfuyVdGzSNlxR421-11cocSZoLM5Dha2NYAvkHQK&s=10', variantes: unica('PROD-002', 45000, 15) },
+  { id: 'PROD-003', nombre: 'Mouse inalámbrico', marca: 'Clickra', categoria: 'Tecnología', descripcion: 'Mouse ergonómico silencioso con receptor USB.', imagen: 'https://panamericana.vtexassets.com/arquivos/ids/532180/mouse-inalambrico-1-hora-rat001-negro-6974368773033.jpg?v=638442150952330000', variantes: unica('PROD-003', 62000, 0) },
+  { id: 'PROD-004', nombre: 'Lámpara LED de escritorio', marca: 'Lumina', categoria: 'Hogar', descripcion: 'Lámpara con tres niveles de brillo y brazo flexible.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQptVSr_pSVuZ5t-JSiFKI1R3QFR03jNUc3BqlW6IVpyw&s=10', variantes: unica('PROD-004', 54000, 10) },
+  { id: 'PROD-005', nombre: 'Set de ollas 3 piezas', marca: 'Cocina Viva', categoria: 'Hogar', descripcion: 'Ollas antiadherentes con tapa de vidrio templado.', imagen: 'https://hogaruniversal.vtexassets.com/arquivos/ids/168503/L72408-OLLA-6-ULTRA-TV-20CM-01.jpg.jpg?v=638824008866670000', variantes: unica('PROD-005', 180000, 4) },
+  { id: 'PROD-006', nombre: 'Organizador de cocina', marca: 'Orden Plus', categoria: 'Hogar', descripcion: 'Organizador de dos niveles para especias y utensilios.', imagen: 'https://exitocol.vteximg.com.br/arquivos/ids/18252234/organizador-especias-cocina-especiero-condimenteros-movible.jpg?v=638188337003430000', variantes: unica('PROD-006', 32000, 20) },
+  { id: 'PROD-007', nombre: 'Balón de fútbol', marca: 'GolPro', categoria: 'Deporte', descripcion: 'Balón cosido a máquina, ideal para cancha.', imagen: 'https://deportesregol.com/cdn/shop/files/927201_Balon_Futbol_Golty_Latir_No.jpg?v=1742199984', variantes: [
+      { id: 'PROD-007-T4', etiqueta: 'Talla 4', precio: 70000, stock: 6 },
+      { id: 'PROD-007-T5', etiqueta: 'Talla 5', precio: 75000, stock: 6 },
+    ] },
+  { id: 'PROD-008', nombre: 'Cuerda para saltar', marca: 'Salto', categoria: 'Deporte', descripcion: 'Cuerda ajustable con mangos antideslizantes.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_663959-MLA99632749117_112025-O.webp', variantes: unica('PROD-008', 18000, 30) },
+  { id: 'PROD-009', nombre: 'Botella térmica', marca: 'Termo Sur', categoria: 'Deporte', descripcion: 'Mantiene el agua fría por 24 horas, acero inoxidable.', imagen: 'https://verdepluma.com.co/cdn/shop/files/06_LIGHT-750-02.webp?v=1791406327&width=720', variantes: [
+      { id: 'PROD-009-500', etiqueta: '500 ml', precio: 42000, stock: 4 },
+      { id: 'PROD-009-750', etiqueta: '750 ml', precio: 48000, stock: 5 },
+    ] },
+  { id: 'PROD-010', nombre: 'Cama para perro', marca: 'Patitas', categoria: 'Mascotas', descripcion: 'Cama acolchada y lavable para perros.', imagen: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrRlPXHkO5Etn08Z4HpQAuv-xxe56RQimmehu8CO8bDA&s', variantes: [
+      { id: 'PROD-010-P', etiqueta: 'Pequeña', precio: 95000, stock: 3 },
+      { id: 'PROD-010-M', etiqueta: 'Mediana', precio: 120000, stock: 5 },
+      { id: 'PROD-010-G', etiqueta: 'Grande', precio: 150000, stock: 0 },
+    ] },
+  { id: 'PROD-011', nombre: 'Rascador para gatos', marca: 'Gatuno', categoria: 'Mascotas', descripcion: 'Torre rascadora con plataforma y juguete colgante.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_816118-MCO112925589672_072026-O.webp', variantes: unica('PROD-011', 95000, 6) },
+  { id: 'PROD-012', nombre: 'Juguete masticable', marca: 'Mordi', categoria: 'Mascotas', descripcion: 'Hueso de caucho resistente para perros activos.', imagen: 'https://http2.mlstatic.com/D_NQ_NP_628827-MCO96981303393_112025-O.webp', variantes: unica('PROD-012', 15000, 25) },
 ];
 
+/* ============ UTILIDADES ============ */
 const cop = (n) => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const promedio = (r) => (r.length ? r.reduce((a, b) => a + b, 0) / r.length : 0);
-const estrellas = (n) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
 const iniciales = (n) => n.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
-const formVacio = { id: null, nombre: '', categoria: CATEGORIAS[0], precio: '', stock: '', descripcion: '', imagen: '' };
+const ahora = () => new Date().toLocaleString();
+const stockTotal = (p) => p.variantes.reduce((a, v) => a + v.stock, 0);
+const precioDesde = (p) => Math.min(...p.variantes.map((v) => v.precio));
+const precioHasta = (p) => Math.max(...p.variantes.map((v) => v.precio));
+const textoPrecio = (p) => (precioDesde(p) === precioHasta(p) ? cop(precioDesde(p)) : 'Desde ' + cop(precioDesde(p)));
+const nombreVar = (nombre, etiqueta) => (etiqueta === 'Única' ? nombre : `${nombre} · ${etiqueta}`);
+const nomMod = (m) => (m === 'expres' ? 'Exprés' : 'Estándar');
+const disponibilidad = (p) => (stockTotal(p) > 0 ? `Disponible (${stockTotal(p)})` : 'Agotado');
+
+// Un pedido guarda una COPIA de precios, nombres y dirección (HU15, "pedidos inmutables")
+const armarPedido = ({ codigo, items, hasta, comprador, direccion, modalidad, fecha }) => {
+  const subtotal = items.reduce((a, i) => a + i.cantidad * i.precio, 0);
+  const envio = TARIFAS[direccion.municipio][modalidad];
+  return {
+    codigo, fecha, items, subtotal, envio,
+    total: subtotal + envio,
+    estado: hasta,
+    eventos: FLUJO.slice(0, FLUJO.indexOf(hasta) + 1).map((e) => ({ estado: e, fecha })),
+    comprador, direccion, modalidad, plazo: PLAZOS[direccion.municipio][modalidad],
+  };
+};
+
+/* ---- Pedidos de prueba para verificar el seguimiento ---- */
+const itemDe = (varId, cantidad) => {
+  for (const p of INICIAL) {
+    const v = p.variantes.find((x) => x.id === varId);
+    if (v) return { productoId: p.id, varianteId: v.id, nombre: p.nombre, etiqueta: v.etiqueta, cantidad, precio: v.precio };
+  }
+  return null;
+};
+const COMPRADOR_PRUEBA = { nombre: 'Ana Prueba', telefono: '3000000000' };
+const dirPrueba = (municipio) => ({ alias: 'Dirección de prueba', municipio, referencia: 'Casa ficticia de ejemplo' });
+const base = { comprador: COMPRADOR_PRUEBA, fecha: 'Datos de prueba' };
+const PEDIDOS_PRUEBA = [
+  armarPedido({ ...base, codigo: 'PED-0001', items: [itemDe('PROD-002-U', 2)], hasta: 'Confirmado', direccion: dirPrueba('Mosquera'), modalidad: 'estandar' }),
+  armarPedido({ ...base, codigo: 'PED-0002', items: [itemDe('PROD-001-N', 1), itemDe('PROD-006-U', 1)], hasta: 'Preparando', direccion: dirPrueba('Funza'), modalidad: 'expres' }),
+  armarPedido({ ...base, codigo: 'PED-0003', items: [itemDe('PROD-007-T5', 1)], hasta: 'En camino', direccion: dirPrueba('Madrid'), modalidad: 'estandar' }),
+  armarPedido({ ...base, codigo: 'PED-0004', items: [itemDe('PROD-012-U', 3)], hasta: 'Entregado', direccion: dirPrueba('Mosquera'), modalidad: 'expres' }),
+];
+// Los pedidos de prueba ya "descontaron" su stock: se resta una sola vez al iniciar.
+const PRODUCTOS_INICIALES = INICIAL.map((p) => ({
+  ...p,
+  variantes: p.variantes.map((v) => ({
+    ...v,
+    stock: v.stock - PEDIDOS_PRUEBA.flatMap((o) => o.items).filter((i) => i.varianteId === v.id).reduce((a, i) => a + i.cantidad, 0),
+  })),
+}));
+const PREGUNTAS_INICIALES = [
+  { id: 'Q-1', productoId: 'PROD-001', texto: '¿Cuánto dura la batería?', fecha: 'Ejemplo', estado: 'Respondida', respuesta: 'Respuesta de ejemplo (simulada): unas 20 horas de uso continuo.' },
+  { id: 'Q-2', productoId: 'PROD-009', texto: '¿La botella mantiene el agua fría?', fecha: 'Ejemplo', estado: 'Respondida', respuesta: 'Respuesta de ejemplo (simulada): hasta 24 horas.' },
+];
+
+const FILTROS_INI = { marca: 'Todas', disp: 'Todas', min: 0, max: Infinity };
+const dirVacia = { id: null, alias: '', municipio: '', referencia: '' };
+const ticketVacio = { pedido: '', motivo: '', descripcion: '' };
 
 export default function App() {
-  
-  const [productos, setProductos] = useState(INICIAL);
+  /* ----- Estado global (en memoria) ----- */
+  const [productos, setProductos] = useState(PRODUCTOS_INICIALES);
   const [favoritos, setFavoritos] = useState([]);
-  const [carrito, setCarrito] = useState([]); // [{id, cantidad}]
-  const [pedidos, setPedidos] = useState([]);
-  const [cuponAplicado, setCuponAplicado] = useState(false);
-  const [cuponTexto, setCuponTexto] = useState('');
+  const [carrito, setCarrito] = useState([]); // [{ productoId, varianteId, cantidad }]
+  const [pedidos, setPedidos] = useState(PEDIDOS_PRUEBA);
+  const [comparar, setComparar] = useState([]); // ids de 2 a 3 productos
+  const [direcciones, setDirecciones] = useState([]);
+  const [notifs, setNotifs] = useState([]);
+  const [suscripciones, setSuscripciones] = useState([]); // avisos de reposición
+  const [preguntas, setPreguntas] = useState(PREGUNTAS_INICIALES);
+  const [tickets, setTickets] = useState([]);
 
-  
+  /* ----- Navegación ----- */
   const [pantalla, setPantalla] = useState('catalogo');
   const [seleccionadoId, setSeleccionadoId] = useState(null);
   const [pedidoSel, setPedidoSel] = useState(null);
-  const [previa, setPrevia] = useState('catalogo'); // desde dónde se abrió el detalle
+  const [previa, setPrevia] = useState('catalogo');
+  const [confirmCancel, setConfirmCancel] = useState(null);
 
+  /* ----- Catálogo y filtros (HU04 a HU06, HU23) ----- */
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('Todas');
   const [orden, setOrden] = useState('ninguno');
+  const [filtros, setFiltros] = useState(FILTROS_INI);
+  const [minTxt, setMinTxt] = useState('');
+  const [maxTxt, setMaxTxt] = useState('');
+  const [errorPrecio, setErrorPrecio] = useState('');
+  const [verFiltros, setVerFiltros] = useState(false);
 
+  /* ----- Detalle ----- */
+  const [varSelId, setVarSelId] = useState(null);
+  const [cantSel, setCantSel] = useState(1);
+  const [preguntaTxt, setPreguntaTxt] = useState('');
+  const [errPreg, setErrPreg] = useState('');
 
+  /* ----- Checkout ----- */
   const [paso, setPaso] = useState('form'); // form | resumen | confirmado
-  const [comprador, setComprador] = useState({ nombre: '', telefono: '', municipio: '', direccion: '' });
+  const [comprador, setComprador] = useState({ nombre: '', telefono: '' });
+  const [dirSelId, setDirSelId] = useState(null);
+  const [modalidad, setModalidad] = useState(null);
   const [errorForm, setErrorForm] = useState('');
   const [ultimoCodigo, setUltimoCodigo] = useState('');
 
-  const [sf, setSf] = useState(formVacio);
-  const [errorSf, setErrorSf] = useState('');
-  const [ratingTexto, setRatingTexto] = useState('');
+  /* ----- Formularios: direcciones y ayuda ----- */
+  const [df, setDf] = useState(dirVacia);
+  const [errorDf, setErrorDf] = useState('');
+  const [hf, setHf] = useState(ticketVacio);
+  const [errorHf, setErrorHf] = useState('');
 
-  
+  /* ----- Mensajes (HU16) ----- */
   const [toast, setToast] = useState(null);
   const avisar = (msg, tipo = 'ok') => {
     setToast({ msg, tipo });
-    setTimeout(() => setToast(null), 2500);
+    setTimeout(() => setToast(null), 2800);
   };
 
-  
-  useEffect(() => {
-    if (carrito.length === 0) { setCuponAplicado(false); setCuponTexto(''); }
-  }, [carrito]);
-
-  
+  /* ============ CÁLCULOS DEL CARRITO (HU11, HU26) ============ */
   const lineas = carrito
-    .map((l) => ({ ...l, producto: productos.find((p) => p.id === l.id) }))
-    .filter((l) => l.producto);
-  const subtotal = lineas.reduce((acc, l) => acc + l.cantidad * l.producto.precio, 0);
-  const descuento = cuponAplicado && subtotal > 0 ? Math.round(subtotal * CUPON.porcentaje) : 0;
-  const envio = subtotal === 0 ? 0 : subtotal < ENVIO_GRATIS_DESDE ? ENVIO : 0;
-  const total = Math.max(0, subtotal - descuento + envio);
+    .map((l) => {
+      const p = productos.find((x) => x.id === l.productoId);
+      const v = p && p.variantes.find((x) => x.id === l.varianteId);
+      return p && v ? { ...l, producto: p, variante: v } : null;
+    })
+    .filter(Boolean);
+  const dir = direcciones.find((d) => d.id === dirSelId) || null;
+  const subtotal = lineas.reduce((acc, l) => acc + l.cantidad * l.variante.precio, 0);
+  // El envío se CALCULA a partir de dirección y modalidad: nunca se acumula, así no se suma dos veces.
+  const envio = subtotal === 0 || !dir || !modalidad ? 0 : TARIFAS[dir.municipio][modalidad];
+  const total = subtotal + envio;
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
+  const sinLeer = notifs.filter((n) => !n.leida).length;
 
-  /* ============ ACCIONES ============ */
-  const ir = (p) => { setPantalla(p); if (p === 'carrito') setPaso('form'); };
-  const abrirDetalle = (id) => { setPrevia(pantalla); setSeleccionadoId(id); setRatingTexto(''); setPantalla('detalle'); };
-
-  const alternarFavorito = (id) => {
-    setFavoritos((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+  /* ============ NAVEGACIÓN ============ */
+  const ir = (p) => {
+    setPantalla(p);
+    setPedidoSel(null);
+    setConfirmCancel(null);
+    if (p === 'carrito') setPaso('form');
+  };
+  const abrirDetalle = (id) => {
+    if (pantalla !== 'detalle') setPrevia(pantalla);
+    setSeleccionadoId(id);
+    setVarSelId(null);
+    setCantSel(1);
+    setPreguntaTxt('');
+    setErrPreg('');
+    setPantalla('detalle');
   };
 
-  const agregar = (id) => {
-    const p = productos.find((x) => x.id === id);
-    if (!p || p.stock <= 0) return avisar('Producto agotado', 'error');
-    const linea = carrito.find((l) => l.id === id);
-    const actual = linea ? linea.cantidad : 0;
-    if (actual >= p.stock) return avisar('Ya tienes todo el stock disponible en el carrito', 'error');
+  /* ============ NOTIFICACIONES (HU29) ============ */
+  // "clave" identifica el evento: si ya existe, no se crea una copia.
+  const notificar = (clave, tipo, mensaje, ref) => {
+    setNotifs((prev) => (prev.some((n) => n.clave === clave)
+      ? prev
+      : [{ id: 'NOT-' + (prev.length + 1), clave, tipo, mensaje, ref, fecha: ahora(), leida: false }, ...prev]));
+  };
+  const abrirNotif = (id) => setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, leida: true } : n)));
+
+  /* ============ FAVORITOS, COMPARADOR, FILTROS ============ */
+  const alternarFavorito = (id) => setFavoritos((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+
+  const alternarComparar = (id) => {
+    if (comparar.includes(id)) return setComparar(comparar.filter((x) => x !== id));
+    if (comparar.length >= 3) return avisar('Solo puedes comparar hasta 3 productos', 'error');
+    setComparar([...comparar, id]);
+  };
+
+  const aplicarPrecio = () => {
+    const min = minTxt.trim() === '' ? 0 : Number(minTxt);
+    const max = maxTxt.trim() === '' ? Infinity : Number(maxTxt);
+    if (Number.isNaN(min) || Number.isNaN(max) || min < 0 || max < 0) return setErrorPrecio('Escribe valores numéricos positivos');
+    if (min > max) return setErrorPrecio('El precio mínimo no puede ser mayor que el máximo');
+    setErrorPrecio('');
+    setFiltros({ ...filtros, min, max });
+  };
+
+  const restablecer = () => {
+    setBusqueda(''); setCategoria('Todas'); setOrden('ninguno');
+    setFiltros(FILTROS_INI); setMinTxt(''); setMaxTxt(''); setErrorPrecio('');
+  };
+
+  /* ============ CARRITO (HU09, HU10, HU21) ============ */
+  const agregar = (p, v, cant) => {
+    if (!v) return avisar('Elige una opción (talla, color o presentación) antes de agregar', 'error');
+    if (v.stock <= 0) return avisar('Esta opción está agotada', 'error');
+    const linea = carrito.find((l) => l.varianteId === v.id);
+    const maximo = v.stock - (linea ? linea.cantidad : 0);
+    if (cant > maximo) {
+      return avisar(maximo <= 0
+        ? 'Ya tienes todo el stock de esta opción en el carrito'
+        : `Máximo permitido: ${maximo} unidad(es) más`, 'error');
+    }
     setCarrito(linea
-      ? carrito.map((l) => (l.id === id ? { ...l, cantidad: l.cantidad + 1 } : l))
-      : [...carrito, { id, cantidad: 1 }]);
-    avisar(`${p.nombre} agregado al carrito`);
+      ? carrito.map((l) => (l.varianteId === v.id ? { ...l, cantidad: l.cantidad + cant } : l))
+      : [...carrito, { productoId: p.id, varianteId: v.id, cantidad: cant }]);
+    avisar(`${nombreVar(p.nombre, v.etiqueta)} agregado al carrito`);
   };
 
-  const cambiarCantidad = (id, delta) => {
-    const p = productos.find((x) => x.id === id);
-    const linea = carrito.find((l) => l.id === id);
-    const nueva = linea.cantidad + delta;
-    if (nueva < 1) return eliminar(id); // criterio consistente: llegar a 0 elimina
-    if (nueva > p.stock) return avisar('No hay más stock disponible', 'error');
-    setCarrito(carrito.map((l) => (l.id === id ? { ...l, cantidad: nueva } : l)));
+  const cambiarCantidad = (varId, delta) => {
+    const l = lineas.find((x) => x.varianteId === varId);
+    const nueva = l.cantidad + delta;
+    if (nueva < 1) return eliminar(varId);
+    if (nueva > l.variante.stock) return avisar('No hay más stock disponible', 'error');
+    setCarrito(carrito.map((x) => (x.varianteId === varId ? { ...x, cantidad: nueva } : x)));
   };
 
-  const eliminar = (id) => {
-    setCarrito(carrito.filter((l) => l.id !== id));
+  const eliminar = (varId) => {
+    setCarrito(carrito.filter((l) => l.varianteId !== varId));
     avisar('Producto quitado del carrito');
   };
 
-  const aplicarCupon = () => {
-    if (subtotal === 0) return avisar('Agrega productos antes de usar un cupón', 'error');
-    if (cuponTexto.trim().toUpperCase() === CUPON.codigo) {
-      setCuponAplicado(true);
-      avisar('Cupón aplicado: 10% de descuento');
-    } else {
-      avisar('Cupón no válido', 'error');
-    }
-  };
-
-  const validarComprador = () => {
-    const campos = [['nombre', 'Nombre'], ['telefono', 'Teléfono'], ['municipio', 'Municipio'], ['direccion', 'Dirección']];
-    for (const [k, etiqueta] of campos) {
-      if (!comprador[k].trim()) return `Falta el campo obligatorio: ${etiqueta}`;
-    }
-    return '';
+  /* ============ COMPRA (HU12, HU13, HU14, HU25, HU26) ============ */
+  const validarCompra = () => {
+    const faltan = [];
+    if (!comprador.nombre.trim()) faltan.push('nombre');
+    if (!comprador.telefono.trim()) faltan.push('teléfono');
+    if (!dir) faltan.push('dirección de entrega');
+    if (!modalidad) faltan.push('modalidad de envío');
+    return faltan.length ? `Falta completar: ${faltan.join(', ')}` : '';
   };
 
   const continuarCheckout = () => {
-    const err = validarComprador();
+    const err = validarCompra();
     setErrorForm(err);
     if (!err) setPaso('resumen');
   };
 
   const confirmarCompra = () => {
     if (lineas.length === 0) return avisar('El carrito está vacío', 'error');
-    // Verifica TODO el stock antes de descontar nada (HU13-CA02)
-    const sinStock = lineas.find((l) => l.cantidad > l.producto.stock);
-    if (sinStock) {
-      return avisar(`Sin stock suficiente de "${sinStock.producto.nombre}". No se realizó el pedido.`, 'error');
+    const err = validarCompra();
+    if (err) { setPaso('form'); return setErrorForm(err); }
+    // Se verifica TODO el stock antes de descontar nada
+    const corto = lineas.find((l) => l.cantidad > l.variante.stock);
+    if (corto) {
+      return avisar(`Sin stock suficiente de "${nombreVar(corto.producto.nombre, corto.variante.etiqueta)}". No se realizó el pedido.`, 'error');
     }
     const codigo = 'PED-' + String(pedidos.length + 1).padStart(4, '0');
-    const pedido = {
-      codigo,
-      fecha: new Date().toLocaleString(),
+    const pedido = armarPedido({
+      codigo, hasta: 'Confirmado', modalidad, fecha: ahora(),
       items: lineas.map((l) => ({
-        nombre: l.producto.nombre, cantidad: l.cantidad, precio: l.producto.precio,
-      })), // copia independiente del carrito
-      subtotal, descuento, envio, total,
+        productoId: l.productoId, varianteId: l.varianteId, nombre: l.producto.nombre,
+        etiqueta: l.variante.etiqueta, cantidad: l.cantidad, precio: l.variante.precio,
+      })),
       comprador: { ...comprador },
-    };
-    setProductos(productos.map((p) => {
-      const l = lineas.find((x) => x.id === p.id);
-      return l ? { ...p, stock: Math.max(0, p.stock - l.cantidad) } : p;
-    }));
+      direccion: { alias: dir.alias, municipio: dir.municipio, referencia: dir.referencia },
+    });
+    setProductos(productos.map((p) => ({
+      ...p,
+      variantes: p.variantes.map((v) => {
+        const l = lineas.find((x) => x.varianteId === v.id);
+        return l ? { ...v, stock: Math.max(0, v.stock - l.cantidad) } : v;
+      }),
+    })));
     setPedidos([pedido, ...pedidos]);
+    notificar(`pedido:${codigo}:Confirmado`, 'Pedido', `Pedido ${codigo}: estado Confirmado`, codigo);
     setCarrito([]);
-    setCuponAplicado(false);
-    setCuponTexto('');
+    setModalidad(null);
     setUltimoCodigo(codigo);
     setPaso('confirmado');
   };
 
-  const guardarResena = (id) => {
-    const n = Number(ratingTexto);
-    if (!Number.isInteger(n) || n < 1 || n > 5) return avisar('La valoración debe ser un entero entre 1 y 5', 'error');
-    setProductos(productos.map((p) => (p.id === id ? { ...p, ratings: [...p.ratings, n] } : p)));
-    setRatingTexto('');
-    avisar('¡Gracias por tu valoración!');
+  /* ============ SEGUIMIENTO Y CANCELACIÓN (HU27, HU28) ============ */
+  const cambiarEstado = (codigo, nuevo) => {
+    setPedidos((prev) => prev.map((o) => (o.codigo === codigo
+      ? { ...o, estado: nuevo, eventos: [...o.eventos, { estado: nuevo, fecha: ahora() }] }
+      : o)));
+    notificar(`pedido:${codigo}:${nuevo}`, 'Pedido', `Pedido ${codigo}: estado ${nuevo}`, codigo);
   };
 
-  const guardarProducto = () => {
-    const precio = Number(sf.precio);
-    const stock = Number(sf.stock);
-    if (!sf.nombre.trim()) return setErrorSf('El nombre no puede estar vacío');
-    if (sf.descripcion.trim().length < 15) return setErrorSf('La descripción debe tener al menos 15 caracteres');
-    if (!Number.isInteger(precio) || precio <= 0) return setErrorSf('El precio debe ser un entero positivo');
-    if (sf.stock.trim() === '' || !Number.isInteger(stock) || stock < 0) return setErrorSf('El stock debe ser un entero no negativo');
-    if (sf.imagen.trim() && !/^https:\/\//i.test(sf.imagen.trim())) return setErrorSf('La URL de la imagen debe empezar por https://');
-    if (sf.id) {
-      setProductos(productos.map((p) => (p.id === sf.id
-        ? { ...p, nombre: sf.nombre.trim(), categoria: sf.categoria, precio, stock, descripcion: sf.descripcion.trim(), imagen: sf.imagen.trim() }
-        : p)));
-      avisar('Producto actualizado');
-    } else {
-      const max = productos.reduce((m, p) => Math.max(m, parseInt(p.id.split('-')[1], 10)), 0);
-      const nuevo = {
-        id: 'PROD-' + String(max + 1).padStart(3, '0'),
-        nombre: sf.nombre.trim(), categoria: sf.categoria, precio, stock,
-        descripcion: sf.descripcion.trim(), imagen: sf.imagen.trim(), ratings: [],
-      };
-      setProductos([...productos, nuevo]);
-      avisar('Producto creado');
+  const avanzar = (codigo) => {
+    const o = pedidos.find((x) => x.codigo === codigo);
+    if (o.estado === 'Entregado' || o.estado === 'Cancelado') {
+      return avisar(`El pedido está ${o.estado}: no admite más transiciones`, 'error');
     }
-    setSf(formVacio);
-    setErrorSf('');
+    cambiarEstado(codigo, FLUJO[FLUJO.indexOf(o.estado) + 1]); // siempre el siguiente: no se salta estados
+  };
+
+  const solicitarCancelacion = (o) => {
+    if (o.estado === 'Cancelado') return avisar('Este pedido ya está cancelado', 'error');
+    if (o.estado !== 'Confirmado' && o.estado !== 'Preparando') {
+      return avisar(`No se puede cancelar: el pedido ya está ${o.estado}`, 'error');
+    }
+    setConfirmCancel(o.codigo);
+  };
+
+  const cancelar = (codigo) => {
+    const o = pedidos.find((x) => x.codigo === codigo);
+    // La guarda de estado impide reintegrar dos veces
+    if (o.estado !== 'Confirmado' && o.estado !== 'Preparando') return avisar('Este pedido ya no se puede cancelar', 'error');
+    setProductos(productos.map((p) => ({
+      ...p,
+      variantes: p.variantes.map((v) => {
+        const it = o.items.find((i) => i.varianteId === v.id);
+        return it ? { ...v, stock: v.stock + it.cantidad } : v;
+      }),
+    })));
+    cambiarEstado(codigo, 'Cancelado');
+    setConfirmCancel(null);
+    avisar('Pedido cancelado y stock restituido');
+  };
+
+  /* ============ AVISOS DE REPOSICIÓN (HU30) ============ */
+  const avisarme = (p, v) => {
+    if (suscripciones.some((s) => s.varianteId === v.id)) return avisar('Ya tienes un aviso activo para esta opción', 'error');
+    setSuscripciones([...suscripciones, { id: 'SUB-' + Date.now(), productoId: p.id, varianteId: v.id }]);
+    avisar('Te avisaremos cuando haya stock');
+  };
+  const cancelarAviso = (varId) => {
+    setSuscripciones(suscripciones.filter((s) => s.varianteId !== varId));
+    avisar('Aviso cancelado');
+  };
+  const simularReposicion = (p, v) => {
+    if (v.stock > 0) return;
+    setProductos(productos.map((x) => (x.id !== p.id ? x : {
+      ...x, variantes: x.variantes.map((y) => (y.id === v.id ? { ...y, stock: y.stock + REPOSICION } : y)),
+    })));
+    suscripciones.filter((s) => s.varianteId === v.id).forEach((s) => {
+      notificar(`repo:${s.id}`, 'Reposición', `Ya hay stock de ${nombreVar(p.nombre, v.etiqueta)}`, p.id);
+    });
+    setSuscripciones(suscripciones.filter((s) => s.varianteId !== v.id));
+    avisar(`Reposición simulada: +${REPOSICION} unidades`);
+  };
+
+  /* ============ PREGUNTAS (HU24) ============ */
+  const enviarPregunta = (pid) => {
+    if (preguntaTxt.trim().length < 10) return setErrPreg('La pregunta debe tener al menos 10 caracteres');
+    setPreguntas([...preguntas, { id: 'Q-' + Date.now(), productoId: pid, texto: preguntaTxt.trim(), fecha: ahora(), estado: 'Pendiente', respuesta: '' }]);
+    setPreguntaTxt('');
+    setErrPreg('');
+    avisar('Pregunta enviada. Estado: Pendiente');
+  };
+  const simularRespuesta = (qid) => {
+    setPreguntas(preguntas.map((q) => (q.id === qid
+      ? { ...q, estado: 'Respondida', respuesta: 'Respuesta automática de demostración (no la escribió una persona real).' }
+      : q)));
+  };
+
+  /* ============ DIRECCIONES (HU25) ============ */
+  const guardarDireccion = () => {
+    if (!df.alias.trim()) return setErrorDf('El alias es obligatorio');
+    if (!df.municipio) return setErrorDf('Elige un municipio');
+    if (df.referencia.trim().length < 5) return setErrorDf('La referencia de entrega debe tener al menos 5 caracteres');
+    const datos = { alias: df.alias.trim(), municipio: df.municipio, referencia: df.referencia.trim() };
+    if (df.id) {
+      setDirecciones(direcciones.map((d) => (d.id === df.id ? { ...d, ...datos } : d)));
+      avisar('Dirección actualizada');
+    } else {
+      setDirecciones([...direcciones, { id: 'DIR-' + Date.now(), ...datos, principal: direcciones.length === 0 }]);
+      avisar('Dirección agregada');
+    }
+    setDf(dirVacia);
+    setErrorDf('');
+  };
+  // Solo una principal; la "seleccionada" es la que usarás en este pedido (dirSelId)
+  const hacerPrincipal = (id) => setDirecciones(direcciones.map((d) => ({ ...d, principal: d.id === id })));
+
+  /* ============ AYUDA (HU32) ============ */
+  const enviarTicket = () => {
+    const errs = [];
+    if (!hf.pedido) errs.push('selecciona un pedido');
+    if (!hf.motivo) errs.push('elige un motivo');
+    if (hf.descripcion.trim().length < 15) errs.push('la descripción debe tener al menos 15 caracteres');
+    if (errs.length) return setErrorHf('Revisa: ' + errs.join('; '));
+    const id = 'CASO-' + String(tickets.length + 1).padStart(4, '0');
+    setTickets([{ id, pedido: hf.pedido, motivo: hf.motivo, descripcion: hf.descripcion.trim(), fecha: ahora(), estado: 'Abierto', respuesta: '' }, ...tickets]);
+    setHf(ticketVacio);
+    setErrorHf('');
+    avisar(`Solicitud ${id} creada`);
+  };
+  const simularRespuestaTicket = (id) => {
+    setTickets(tickets.map((t) => (t.id === id
+      ? { ...t, estado: 'Respondido', respuesta: 'Respuesta de prueba (simulada): tu caso fue revisado.' }
+      : t)));
   };
 
   /* ============ PANTALLAS ============ */
-
-  // Etiqueta de disponibilidad
-  const disponibilidad = (p) => (p.stock > 0 ? `Disponible (${p.stock})` : 'Agotado');
+  const tarjeta = (p) => (
+    <View style={s.card}>
+      <Pressable style={s.cardFila} onPress={() => abrirDetalle(p.id)}>
+        <Foto key={p.imagen} producto={p} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.cardTitulo}>{p.nombre}</Text>
+          <Text style={s.gris}>{p.marca} · {p.categoria}</Text>
+          <Text style={s.precio}>{textoPrecio(p)}</Text>
+          <Text style={{ color: stockTotal(p) > 0 ? '#15803D' : '#B91C1C', fontWeight: '600' }}>{disponibilidad(p)}</Text>
+        </View>
+      </Pressable>
+      <View style={s.cardAcciones}>
+        <Pressable onPress={() => alternarFavorito(p.id)} hitSlop={8}>
+          <Text style={s.link}>{favoritos.includes(p.id) ? 'En favoritos' : 'Favorito'}</Text>
+        </Pressable>
+        <Pressable onPress={() => alternarComparar(p.id)} hitSlop={8}>
+          <Text style={s.link}>{comparar.includes(p.id) ? 'Quitar de comparación' : 'Comparar'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   const renderCatalogo = () => {
+    const marcas = [...new Set(productos.map((p) => p.marca))];
     let lista = productos.filter((p) =>
       p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()) &&
-      (categoria === 'Todas' || p.categoria === categoria));
-    if (orden === 'asc') lista = [...lista].sort((a, b) => a.precio - b.precio);
-    if (orden === 'desc') lista = [...lista].sort((a, b) => b.precio - a.precio);
+      (categoria === 'Todas' || p.categoria === categoria) &&
+      (filtros.marca === 'Todas' || p.marca === filtros.marca) &&
+      (filtros.disp === 'Todas' || (filtros.disp === 'Disponible') === (stockTotal(p) > 0)) &&
+      p.variantes.some((v) => v.precio >= filtros.min && v.precio <= filtros.max));
+    if (orden === 'asc') lista = [...lista].sort((a, b) => precioDesde(a) - precioDesde(b));
+    if (orden === 'desc') lista = [...lista].sort((a, b) => precioDesde(b) - precioDesde(a));
 
-    return (
-      <View style={{ flex: 1 }}>
-        <TextInput
-          style={s.input} placeholder="Buscar producto..." value={busqueda}
-          onChangeText={setBusqueda}
-        />
+    const cabecera = (
+      <View>
+        <TextInput style={s.input} placeholder="Buscar producto..." value={busqueda} onChangeText={setBusqueda} />
         <View style={s.fila}>
           {['Todas', ...CATEGORIAS].map((c) => (
             <Chip key={c} texto={c} activo={categoria === c} onPress={() => setCategoria(c)} />
@@ -239,80 +484,162 @@ export default function App() {
           <Chip texto="Mayor a menor" activo={orden === 'desc'} onPress={() => setOrden('desc')} />
           <Chip texto="Sin orden" activo={orden === 'ninguno'} onPress={() => setOrden('ninguno')} />
         </View>
-        <FlatList
-          data={lista}
-          keyExtractor={(p) => p.id}
-          ListEmptyComponent={<Vacio texto="No encontramos productos" />}
-          renderItem={({ item }) => tarjeta(item)}
-        />
+        <View style={s.fila}>
+          <Chip texto={verFiltros ? 'Ocultar filtros' : 'Más filtros'} activo={verFiltros} onPress={() => setVerFiltros(!verFiltros)} />
+          <Chip texto={`Comparar (${comparar.length})`} onPress={() => ir('comparador')} />
+          <Chip texto="Restablecer" onPress={restablecer} />
+        </View>
+        {verFiltros && (
+          <View style={s.caja}>
+            <Text style={s.subtitulo}>Marca</Text>
+            <View style={s.fila}>
+              {['Todas', ...marcas].map((m) => (
+                <Chip key={m} texto={m} activo={filtros.marca === m} onPress={() => setFiltros({ ...filtros, marca: m })} />
+              ))}
+            </View>
+            <Text style={s.subtitulo}>Disponibilidad</Text>
+            <View style={s.fila}>
+              {['Todas', 'Disponible', 'Agotado'].map((d) => (
+                <Chip key={d} texto={d} activo={filtros.disp === d} onPress={() => setFiltros({ ...filtros, disp: d })} />
+              ))}
+            </View>
+            <Text style={s.subtitulo}>Rango de precio (COP)</Text>
+            <View style={s.fila}>
+              <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Mínimo" keyboardType="numeric" value={minTxt} onChangeText={setMinTxt} />
+              <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Máximo" keyboardType="numeric" value={maxTxt} onChangeText={setMaxTxt} />
+              <Boton texto="Aplicar" onPress={aplicarPrecio} />
+            </View>
+            {!!errorPrecio && <Text style={s.error}>{errorPrecio}</Text>}
+          </View>
+        )}
       </View>
     );
-  };
 
-  const tarjeta = (p) => (
-    <Pressable style={s.card} onPress={() => abrirDetalle(p.id)}>
-      <Foto key={p.imagen} producto={p} />
-      <View style={{ flex: 1 }}>
-        <Text style={s.cardTitulo}>{p.nombre}</Text>
-        <Text style={s.gris}>{p.categoria}</Text>
-        <Text style={s.precio}>{cop(p.precio)}</Text>
-        <Text style={{ color: p.stock > 0 ? '#15803D' : '#B91C1C', fontWeight: '600' }}>{disponibilidad(p)}</Text>
-      </View>
-      <Pressable onPress={() => alternarFavorito(p.id)} hitSlop={10}>
-        <Text style={{ color: MARCA.color1, fontWeight: '700', fontSize: 12 }}>{favoritos.includes(p.id) ? 'En favoritos' : 'Favorito'}</Text>
-      </Pressable>
-    </Pressable>
-  );
+    return (
+      <FlatList
+        data={lista}
+        keyExtractor={(p) => p.id}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={cabecera}
+        ListEmptyComponent={<Vacio texto="No encontramos productos" accion="Restablecer filtros" onAccion={restablecer} />}
+        renderItem={({ item }) => tarjeta(item)}
+      />
+    );
+  };
 
   const renderDetalle = () => {
     const p = productos.find((x) => x.id === seleccionadoId);
     if (!p) return <Vacio texto="Producto no encontrado" accion="Volver al catálogo" onAccion={() => ir('catalogo')} />;
-    const prom = promedio(p.ratings);
+    const v = p.variantes.length === 1 ? p.variantes[0] : p.variantes.find((x) => x.id === varSelId) || null;
+    const susc = v ? suscripciones.some((x) => x.varianteId === v.id) : false;
+    const susPreguntas = preguntas.filter((q) => q.productoId === p.id);
+    const relacionados = productos
+      .filter((x) => x.categoria === p.categoria && x.id !== p.id && stockTotal(x) > 0)
+      .slice(0, 4);
+
     return (
-      <ScrollView>
+      <ScrollView key={p.id} keyboardShouldPersistTaps="handled">
         <Boton texto="← Volver" tipo="sec" onPress={() => ir(previa)} />
         <View style={{ alignSelf: 'center', marginVertical: 12 }}>
           <Foto key={p.imagen} producto={p} tam={180} />
         </View>
         <Text style={s.titulo}>{p.nombre}</Text>
-        <Text style={s.gris}>{p.categoria}</Text>
-        <Text style={[s.precio, { fontSize: 24 }]}>{cop(p.precio)}</Text>
+        <Text style={s.gris}>{p.marca} · {p.categoria}</Text>
+        <Text style={[s.precio, { fontSize: 24 }]}>{v ? cop(v.precio) : textoPrecio(p)}</Text>
         <Text style={{ marginVertical: 8 }}>{p.descripcion}</Text>
-        <Text style={{ fontWeight: '700', color: p.stock > 0 ? '#15803D' : '#B91C1C' }}>
-          {p.stock > 0 ? `Stock: ${p.stock} unidades` : 'AGOTADO'}
+
+        {p.variantes.length > 1 && (
+          <View>
+            <Text style={s.subtitulo}>Elige una opción</Text>
+            <View style={s.fila}>
+              {p.variantes.map((x) => (
+                <Chip key={x.id} texto={x.stock > 0 ? x.etiqueta : `${x.etiqueta} (agotada)`} activo={varSelId === x.id} onPress={() => setVarSelId(x.id)} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        <Text style={{ fontWeight: '700', color: (v ? v.stock : stockTotal(p)) > 0 ? '#15803D' : '#B91C1C' }}>
+          {v ? (v.stock > 0 ? `Stock de esta opción: ${v.stock} unidades` : 'AGOTADO') : `Stock total: ${stockTotal(p)} unidades`}
         </Text>
-        <Text style={{ marginTop: 6 }}>
-          {p.ratings.length
-            ? `${estrellas(prom)}  ${prom.toFixed(1)} (${p.ratings.length} valoraciones)`
-            : 'Aún sin valoraciones'}
-        </Text>
-        <View style={[s.fila, { marginTop: 12 }]}>
-          <Boton
-            texto={favoritos.includes(p.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-            tipo="sec" onPress={() => alternarFavorito(p.id)}
-          />
-          <Boton texto="Agregar al carrito" deshabilitado={p.stock <= 0} onPress={() => agregar(p.id)} />
+
+        {v && v.stock === 0 && (
+          <View style={s.caja}>
+            {susc
+              ? <Boton texto="Cancelar aviso de reposición" tipo="sec" onPress={() => cancelarAviso(v.id)} />
+              : <Boton texto="Avisarme cuando haya stock" onPress={() => avisarme(p, v)} />}
+            <Boton texto={`Simular reposición (demostración, +${REPOSICION})`} tipo="sec" onPress={() => simularReposicion(p, v)} />
+          </View>
+        )}
+
+        <View style={[s.fila, { marginTop: 10 }]}>
+          <Text style={s.subtitulo}>Cantidad</Text>
+          <Pressable style={s.mini} onPress={() => setCantSel(Math.max(1, cantSel - 1))}><Text style={s.miniTxt}>−</Text></Pressable>
+          <Text style={{ fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{cantSel}</Text>
+          <Pressable style={s.mini} onPress={() => setCantSel(cantSel + 1)}><Text style={s.miniTxt}>+</Text></Pressable>
         </View>
-        <Text style={[s.subtitulo, { marginTop: 18 }]}>Califica este producto</Text>
         <View style={s.fila}>
-          <TextInput
-            style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Estrellas (1 a 5)"
-            keyboardType="numeric" value={ratingTexto} onChangeText={setRatingTexto}
-          />
-          <Boton texto="Guardar" onPress={() => guardarResena(p.id)} />
+          <Boton texto="Agregar al carrito" deshabilitado={!!v && v.stock <= 0} onPress={() => agregar(p, v, cantSel)} />
+          <Boton texto={favoritos.includes(p.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'} tipo="sec" onPress={() => alternarFavorito(p.id)} />
+          <Boton texto={comparar.includes(p.id) ? 'Quitar de comparación' : 'Comparar'} tipo="sec" onPress={() => alternarComparar(p.id)} />
         </View>
+
+        <Text style={[s.subtitulo, { marginTop: 14 }]}>Preguntas</Text>
+        {susPreguntas.length === 0 && <Text style={s.gris}>Este producto aún no tiene preguntas.</Text>}
+        {susPreguntas.map((q) => (
+          <View key={q.id} style={s.caja}>
+            <Text style={{ fontWeight: '700' }}>{q.texto}</Text>
+            <Text style={s.gris}>{q.fecha} · {q.estado}</Text>
+            {q.estado === 'Respondida'
+              ? <Text style={{ marginTop: 4 }}>{q.respuesta}</Text>
+              : <Boton texto="Simular respuesta (demostración)" tipo="sec" onPress={() => simularRespuesta(q.id)} />}
+          </View>
+        ))}
+        <TextInput style={s.input} placeholder="Escribe tu pregunta (mínimo 10 caracteres)" value={preguntaTxt} onChangeText={setPreguntaTxt} />
+        {!!errPreg && <Text style={s.error}>{errPreg}</Text>}
+        <Boton texto="Enviar pregunta" onPress={() => enviarPregunta(p.id)} />
+
+        <Text style={[s.subtitulo, { marginTop: 14 }]}>Productos relacionados</Text>
+        {relacionados.length === 0
+          ? <Text style={s.gris}>No hay otros productos disponibles en esta categoría.</Text>
+          : relacionados.map((x) => <View key={x.id}>{tarjeta(x)}</View>)}
       </ScrollView>
     );
   };
 
-  const renderFavoritos = () => {
-    const lista = productos.filter((p) => favoritos.includes(p.id));
+  const renderFavoritos = () => (
+    <FlatList
+      data={productos.filter((p) => favoritos.includes(p.id))}
+      keyExtractor={(p) => p.id}
+      ListEmptyComponent={<Vacio texto="No tienes favoritos guardados" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />}
+      renderItem={({ item }) => tarjeta(item)}
+    />
+  );
+
+  const renderComparador = () => {
+    const lista = comparar.map((id) => productos.find((p) => p.id === id)).filter(Boolean);
+    if (lista.length < 2) {
+      return <Vacio texto={`Selecciona entre 2 y 3 productos para compararlos (llevas ${lista.length})`} accion="Ir al catálogo" onAccion={() => ir('catalogo')} />;
+    }
     return (
-      <FlatList
-        data={lista} keyExtractor={(p) => p.id}
-        ListEmptyComponent={<Vacio texto="No tienes favoritos guardados" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />}
-        renderItem={({ item }) => tarjeta(item)}
-      />
+      <ScrollView>
+        <Text style={s.subtitulo}>Comparador</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {lista.map((p) => (
+            <View key={p.id} style={[s.caja, { flex: 1 }]}>
+              <Text style={s.cardTitulo}>{p.nombre}</Text>
+              <Text style={s.gris}>Marca</Text>
+              <Text>{p.marca}</Text>
+              <Text style={[s.gris, { marginTop: 6 }]}>Precio</Text>
+              <Text style={s.precio}>{textoPrecio(p)}</Text>
+              <Text style={[s.gris, { marginTop: 6 }]}>Disponibilidad</Text>
+              <Text>{disponibilidad(p)}</Text>
+              <Boton texto="Ver detalle" onPress={() => abrirDetalle(p.id)} />
+              <Boton texto="Quitar" tipo="sec" onPress={() => alternarComparar(p.id)} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     );
   };
 
@@ -324,7 +651,7 @@ export default function App() {
           <Text style={[s.gris, { textAlign: 'center', marginVertical: 8 }]}>
             Esta es una SIMULACIÓN académica: no se realizó ningún cobro real.
           </Text>
-          <Boton texto="Ver historial" onPress={() => ir('historial')} />
+          <Boton texto="Ver mis pedidos" onPress={() => ir('historial')} />
           <Boton texto="Seguir comprando" tipo="sec" onPress={() => ir('catalogo')} />
         </View>
       );
@@ -333,70 +660,78 @@ export default function App() {
       return <Vacio texto="Tu carrito está vacío" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />;
     }
     return (
-      <ScrollView>
+      <ScrollView keyboardShouldPersistTaps="handled">
         {lineas.map((l) => (
-          <View key={l.id} style={s.card}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.cardTitulo}>{l.producto.nombre}</Text>
-              <Text style={s.gris}>{cop(l.producto.precio)} c/u</Text>
-              <Text style={s.precio}>{cop(l.cantidad * l.producto.precio)}</Text>
-            </View>
-            {paso === 'form' && (
-              <View style={{ alignItems: 'center' }}>
-                <View style={s.fila}>
-                  <Pressable style={s.mini} onPress={() => cambiarCantidad(l.id, -1)}><Text style={s.miniTxt}>−</Text></Pressable>
-                  <Text style={{ fontWeight: '700', marginHorizontal: 8 }}>{l.cantidad}</Text>
-                  <Pressable style={s.mini} onPress={() => cambiarCantidad(l.id, 1)}><Text style={s.miniTxt}>+</Text></Pressable>
-                </View>
-                <Pressable onPress={() => eliminar(l.id)}><Text style={{ color: '#B91C1C', marginTop: 6 }}>Eliminar</Text></Pressable>
+          <View key={l.varianteId} style={s.card}>
+            <View style={s.cardFila}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitulo}>{nombreVar(l.producto.nombre, l.variante.etiqueta)}</Text>
+                <Text style={s.gris}>{cop(l.variante.precio)} c/u</Text>
+                <Text style={s.precio}>{cop(l.cantidad * l.variante.precio)}</Text>
               </View>
-            )}
-            {paso === 'resumen' && <Text style={{ fontWeight: '700' }}>x{l.cantidad}</Text>}
+              {paso === 'form' ? (
+                <View style={{ alignItems: 'center' }}>
+                  <View style={s.fila}>
+                    <Pressable style={s.mini} onPress={() => cambiarCantidad(l.varianteId, -1)}><Text style={s.miniTxt}>−</Text></Pressable>
+                    <Text style={{ fontWeight: '700', marginHorizontal: 8 }}>{l.cantidad}</Text>
+                    <Pressable style={s.mini} onPress={() => cambiarCantidad(l.varianteId, 1)}><Text style={s.miniTxt}>+</Text></Pressable>
+                  </View>
+                  <Pressable onPress={() => eliminar(l.varianteId)}><Text style={{ color: '#B91C1C', marginTop: 6 }}>Eliminar</Text></Pressable>
+                </View>
+              ) : (
+                <Text style={{ fontWeight: '700' }}>x{l.cantidad}</Text>
+              )}
+            </View>
           </View>
         ))}
 
-        {paso === 'form' && (
-          <View style={s.caja}>
-            <Text style={s.subtitulo}>Cupón</Text>
-            <View style={s.fila}>
-              <TextInput
-                style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Código de cupón"
-                autoCapitalize="characters" value={cuponTexto} onChangeText={setCuponTexto}
-              />
-              <Boton texto="Aplicar" onPress={aplicarCupon} />
-            </View>
-          </View>
-        )}
-
         <View style={s.caja}>
           <Fila a="Subtotal" b={cop(subtotal)} />
-          {descuento > 0 && <Fila a="Descuento (10%)" b={'−' + cop(descuento)} />}
-          <Fila a="Envío" b={envio === 0 ? 'Gratis' : cop(envio)} />
+          <Fila a="Envío" b={dir && modalidad ? cop(envio) : 'Por definir'} />
           <Fila a="Total" b={cop(total)} fuerte />
-          {subtotal < ENVIO_GRATIS_DESDE && (
-            <Text style={s.gris}>Envío gratis desde {cop(ENVIO_GRATIS_DESDE)}</Text>
+          {dir && modalidad && (
+            <Text style={s.gris}>Envío {nomMod(modalidad)} a {dir.municipio}: {PLAZOS[dir.municipio][modalidad]}</Text>
           )}
         </View>
 
         {paso === 'form' ? (
           <View style={s.caja}>
-            <Text style={s.subtitulo}>Datos de entrega</Text>
-            {[['nombre', 'Nombre completo'], ['telefono', 'Teléfono'], ['municipio', 'Municipio'], ['direccion', 'Dirección']].map(([k, ph]) => (
-              <TextInput
-                key={k} style={s.input} placeholder={ph} value={comprador[k]}
-                keyboardType={k === 'telefono' ? 'phone-pad' : 'default'}
-                onChangeText={(t) => setComprador({ ...comprador, [k]: t })}
-              />
-            ))}
+            <Text style={s.subtitulo}>Datos de contacto</Text>
+            <TextInput style={s.input} placeholder="Nombre completo (ficticio)" value={comprador.nombre} onChangeText={(t) => setComprador({ ...comprador, nombre: t })} />
+            <TextInput style={s.input} placeholder="Teléfono" keyboardType="phone-pad" value={comprador.telefono} onChangeText={(t) => setComprador({ ...comprador, telefono: t })} />
+
+            <Text style={s.subtitulo}>Dirección de entrega</Text>
+            {direcciones.length === 0 ? (
+              <View>
+                <Text style={s.gris}>Aún no tienes direcciones registradas.</Text>
+                <Boton texto="Agregar una dirección" tipo="sec" onPress={() => ir('direcciones')} />
+              </View>
+            ) : (
+              <View style={s.fila}>
+                {direcciones.map((d) => (
+                  <Chip key={d.id} texto={`${d.alias} · ${d.municipio}${d.principal ? ' (principal)' : ''}`} activo={dirSelId === d.id} onPress={() => setDirSelId(d.id)} />
+                ))}
+              </View>
+            )}
+
+            <Text style={s.subtitulo}>Modalidad de envío</Text>
+            <View style={s.fila}>
+              {['estandar', 'expres'].map((m) => (
+                <Chip key={m} texto={dir ? `${nomMod(m)} · ${cop(TARIFAS[dir.municipio][m])}` : nomMod(m)} activo={modalidad === m} onPress={() => setModalidad(m)} />
+              ))}
+            </View>
+
             {!!errorForm && <Text style={s.error}>{errorForm}</Text>}
-            <Text style={s.gris}>Prototipo académico: no ingreses datos bancarios ni sensibles.</Text>
+            <Text style={s.gris}>Prototipo académico: usa datos ficticios, sin datos bancarios ni sensibles.</Text>
             <Boton texto="Continuar al resumen" onPress={continuarCheckout} />
           </View>
         ) : (
           <View style={s.caja}>
             <Text style={s.subtitulo}>Entregar a</Text>
             <Text>{comprador.nombre} · {comprador.telefono}</Text>
-            <Text>{comprador.direccion}, {comprador.municipio}</Text>
+            <Text>{dir.alias} · {dir.municipio}</Text>
+            <Text>{dir.referencia}</Text>
+            <Text style={s.gris}>Envío {nomMod(modalidad)} · plazo {PLAZOS[dir.municipio][modalidad]}</Text>
             <Text style={[s.gris, { marginVertical: 6 }]}>Simulación sin cobro real.</Text>
             <Boton texto="Confirmar compra" onPress={confirmarCompra} />
             <Boton texto="← Editar datos" tipo="sec" onPress={() => setPaso('form')} />
@@ -407,92 +742,176 @@ export default function App() {
   };
 
   const renderHistorial = () => {
-    if (pedidoSel) {
-      const p = pedidos.find((x) => x.codigo === pedidoSel);
+    const o = pedidoSel ? pedidos.find((x) => x.codigo === pedidoSel) : null;
+    if (o) {
+      const final = o.estado === 'Entregado' || o.estado === 'Cancelado';
       return (
         <ScrollView>
-          <Boton texto="← Volver al historial" tipo="sec" onPress={() => setPedidoSel(null)} />
-          <Text style={s.titulo}>{p.codigo}</Text>
-          <Text style={s.gris}>{p.fecha}</Text>
-          <Text style={s.gris}>Entregar a: {p.comprador.nombre} · {p.comprador.direccion}, {p.comprador.municipio}</Text>
-          {p.items.map((it, i) => (
-            <View key={i} style={s.card}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.cardTitulo}>{it.nombre}</Text>
-                <Text style={s.gris}>{it.cantidad} x {cop(it.precio)}</Text>
+          <Boton texto="← Volver a mis pedidos" tipo="sec" onPress={() => ir('historial')} />
+          <Text style={s.titulo}>{o.codigo}</Text>
+          <Text style={s.gris}>{o.fecha}</Text>
+          <Text style={[s.subtitulo, { color: MARCA.color1 }]}>Estado: {o.estado}</Text>
+          <Text style={s.gris}>Entregar a: {o.comprador.nombre} · {o.comprador.telefono}</Text>
+          <Text style={s.gris}>{o.direccion.alias} · {o.direccion.municipio} · {o.direccion.referencia}</Text>
+          <Text style={[s.gris, { marginBottom: 8 }]}>Envío {nomMod(o.modalidad)} · plazo {o.plazo}</Text>
+          {o.items.map((it) => (
+            <View key={it.varianteId} style={s.card}>
+              <View style={[s.cardFila, { justifyContent: 'space-between' }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cardTitulo}>{nombreVar(it.nombre, it.etiqueta)}</Text>
+                  <Text style={s.gris}>{it.cantidad} x {cop(it.precio)}</Text>
+                </View>
+                <Text style={s.precio}>{cop(it.cantidad * it.precio)}</Text>
               </View>
-              <Text style={s.precio}>{cop(it.cantidad * it.precio)}</Text>
             </View>
           ))}
           <View style={s.caja}>
-            <Fila a="Subtotal" b={cop(p.subtotal)} />
-            {p.descuento > 0 && <Fila a="Descuento" b={'−' + cop(p.descuento)} />}
-            <Fila a="Envío" b={p.envio === 0 ? 'Gratis' : cop(p.envio)} />
-            <Fila a="Total" b={cop(p.total)} fuerte />
+            <Fila a="Subtotal" b={cop(o.subtotal)} />
+            <Fila a="Envío" b={cop(o.envio)} />
+            <Fila a="Total" b={cop(o.total)} fuerte />
           </View>
+          <View style={s.caja}>
+            <Text style={s.subtitulo}>Seguimiento</Text>
+            {o.eventos.map((e, i) => <Text key={i}>{e.estado} · <Text style={s.gris}>{e.fecha}</Text></Text>)}
+          </View>
+          <Boton texto="Simular avance de entrega" deshabilitado={final} onPress={() => avanzar(o.codigo)} />
+          {final && <Text style={s.gris}>Pedido {o.estado.toLowerCase()}: no admite más transiciones.</Text>}
+          {confirmCancel === o.codigo ? (
+            <View style={s.caja}>
+              <Text style={{ fontWeight: '700' }}>¿Confirmas la cancelación de {o.codigo}?</Text>
+              <Boton texto="Sí, cancelar pedido" onPress={() => cancelar(o.codigo)} />
+              <Boton texto="No, mantenerlo" tipo="sec" onPress={() => setConfirmCancel(null)} />
+            </View>
+          ) : (
+            <Boton texto="Cancelar pedido" tipo="sec" onPress={() => solicitarCancelacion(o)} />
+          )}
         </ScrollView>
       );
     }
     return (
       <FlatList
-        data={pedidos} keyExtractor={(p) => p.codigo}
+        data={pedidos}
+        keyExtractor={(x) => x.codigo}
         ListEmptyComponent={<Vacio texto="No hay pedidos registrados" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />}
         renderItem={({ item }) => (
           <Pressable style={s.card} onPress={() => setPedidoSel(item.codigo)}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.cardTitulo}>{item.codigo}</Text>
-              <Text style={s.gris}>{item.fecha}</Text>
+            <View style={[s.cardFila, { justifyContent: 'space-between' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitulo}>{item.codigo}</Text>
+                <Text style={s.gris}>{item.fecha}</Text>
+                <Text style={{ color: MARCA.color1, fontWeight: '700' }}>{item.estado}</Text>
+              </View>
+              <Text style={s.precio}>{cop(item.total)}</Text>
             </View>
-            <Text style={s.precio}>{cop(item.total)}</Text>
           </Pressable>
         )}
       />
     );
   };
 
-  const renderVendedor = () => (
-    <ScrollView>
-      <Text style={s.subtitulo}>{sf.id ? `Editando ${sf.id}` : 'Nuevo producto'}</Text>
-      <TextInput style={s.input} placeholder="Nombre" value={sf.nombre} onChangeText={(t) => setSf({ ...sf, nombre: t })} />
-      <View style={s.fila}>
-        {CATEGORIAS.map((c) => (
-          <Chip key={c} texto={c} activo={sf.categoria === c} onPress={() => setSf({ ...sf, categoria: c })} />
-        ))}
-      </View>
-      <TextInput style={s.input} placeholder="Precio (COP)" keyboardType="numeric" value={String(sf.precio)} onChangeText={(t) => setSf({ ...sf, precio: t })} />
-      <TextInput style={s.input} placeholder="Stock" keyboardType="numeric" value={String(sf.stock)} onChangeText={(t) => setSf({ ...sf, stock: t })} />
-      <TextInput style={s.input} placeholder="Descripción (mín. 15 caracteres)" value={sf.descripcion} onChangeText={(t) => setSf({ ...sf, descripcion: t })} />
-      <TextInput style={s.input} placeholder="URL de imagen https (opcional)" autoCapitalize="none" value={sf.imagen} onChangeText={(t) => setSf({ ...sf, imagen: t })} />
-      {!!errorSf && <Text style={s.error}>{errorSf}</Text>}
-      <Boton texto={sf.id ? 'Guardar cambios' : 'Crear producto'} onPress={guardarProducto} />
-      {sf.id && <Boton texto="Cancelar edición" tipo="sec" onPress={() => { setSf(formVacio); setErrorSf(''); }} />}
-      <Text style={[s.subtitulo, { marginTop: 16 }]}>Productos ({productos.length})</Text>
-      {productos.map((p) => (
-        <View key={p.id} style={s.card}>
+  const renderNotificaciones = () => (
+    <FlatList
+      data={notifs}
+      keyExtractor={(n) => n.id}
+      ListEmptyComponent={<Vacio texto="No tienes notificaciones" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />}
+      renderItem={({ item }) => (
+        <Pressable style={[s.card, !item.leida && { borderLeftWidth: 4, borderColor: MARCA.color2 }]} onPress={() => abrirNotif(item.id)}>
           <View style={{ flex: 1 }}>
-            <Text style={s.cardTitulo}>{p.nombre}</Text>
-            <Text style={s.gris}>{p.id} · {cop(p.precio)} · stock {p.stock}</Text>
+            <Text style={s.cardTitulo}>{item.mensaje}</Text>
+            <Text style={s.gris}>{item.tipo} · {item.fecha} · {item.leida ? 'Leída' : 'Nueva'}</Text>
           </View>
-          <Pressable onPress={() => { setSf({ id: p.id, nombre: p.nombre, categoria: p.categoria, precio: String(p.precio), stock: String(p.stock), descripcion: p.descripcion, imagen: p.imagen || '' }); setErrorSf(''); }}>
-            <Text style={{ color: MARCA.color1, fontWeight: '700' }}>Editar</Text>
-          </Pressable>
+        </Pressable>
+      )}
+    />
+  );
+
+  const renderDirecciones = () => (
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <Text style={s.subtitulo}>{df.id ? 'Editar dirección' : 'Nueva dirección'} (datos ficticios)</Text>
+      <TextInput style={s.input} placeholder="Alias (ej. Casa)" value={df.alias} onChangeText={(t) => setDf({ ...df, alias: t })} />
+      <View style={s.fila}>
+        {MUNICIPIOS.map((m) => <Chip key={m} texto={m} activo={df.municipio === m} onPress={() => setDf({ ...df, municipio: m })} />)}
+      </View>
+      <TextInput style={s.input} placeholder="Referencia de entrega" value={df.referencia} onChangeText={(t) => setDf({ ...df, referencia: t })} />
+      {!!errorDf && <Text style={s.error}>{errorDf}</Text>}
+      <Boton texto={df.id ? 'Guardar cambios' : 'Guardar dirección'} onPress={guardarDireccion} />
+      {df.id && <Boton texto="Cancelar edición" tipo="sec" onPress={() => { setDf(dirVacia); setErrorDf(''); }} />}
+      <Text style={[s.subtitulo, { marginTop: 16 }]}>Mis direcciones ({direcciones.length})</Text>
+      {direcciones.length === 0 && <Text style={s.gris}>Aún no tienes direcciones registradas.</Text>}
+      {direcciones.map((d) => (
+        <View key={d.id} style={s.card}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitulo}>{d.alias}{d.principal ? ' (principal)' : ''}</Text>
+            <Text style={s.gris}>{d.municipio} · {d.referencia}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            {!d.principal && <Pressable onPress={() => hacerPrincipal(d.id)}><Text style={s.link}>Hacer principal</Text></Pressable>}
+            <Pressable onPress={() => { setDf({ id: d.id, alias: d.alias, municipio: d.municipio, referencia: d.referencia }); setErrorDf(''); }}><Text style={s.link}>Editar</Text></Pressable>
+          </View>
         </View>
       ))}
     </ScrollView>
   );
 
+  const renderAyuda = () => (
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <Text style={s.subtitulo}>Nueva solicitud de ayuda</Text>
+      {pedidos.length === 0 ? (
+        <Vacio texto="Aún no tienes pedidos para reportar" accion="Ir al catálogo" onAccion={() => ir('catalogo')} />
+      ) : (
+        <View>
+          <Text style={s.gris}>Pedido</Text>
+          <View style={s.fila}>
+            {pedidos.map((o) => <Chip key={o.codigo} texto={o.codigo} activo={hf.pedido === o.codigo} onPress={() => setHf({ ...hf, pedido: o.codigo })} />)}
+          </View>
+          <Text style={s.gris}>Motivo</Text>
+          <View style={s.fila}>
+            {['Entrega', 'Producto', 'Otro'].map((m) => <Chip key={m} texto={m} activo={hf.motivo === m} onPress={() => setHf({ ...hf, motivo: m })} />)}
+          </View>
+          <TextInput style={s.input} placeholder="Describe el problema (mínimo 15 caracteres)" value={hf.descripcion} onChangeText={(t) => setHf({ ...hf, descripcion: t })} />
+          {!!errorHf && <Text style={s.error}>{errorHf}</Text>}
+          <Boton texto="Enviar solicitud" onPress={enviarTicket} />
+        </View>
+      )}
+      <Text style={[s.subtitulo, { marginTop: 16 }]}>Mis solicitudes ({tickets.length})</Text>
+      {tickets.length === 0 && <Text style={s.gris}>Aún no has creado solicitudes.</Text>}
+      {tickets.map((t) => (
+        <View key={t.id} style={s.caja}>
+          <Text style={s.cardTitulo}>{t.id} · {t.estado}</Text>
+          <Text style={s.gris}>{t.pedido} · {t.motivo} · {t.fecha}</Text>
+          <Text style={{ marginVertical: 4 }}>{t.descripcion}</Text>
+          {t.estado === 'Respondido'
+            ? <Text>{t.respuesta}</Text>
+            : <Boton texto="Simular respuesta (demostración)" tipo="sec" onPress={() => simularRespuestaTicket(t.id)} />}
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  const renderMas = () => (
+    <ScrollView>
+      <Text style={s.subtitulo}>Más opciones</Text>
+      <Boton texto="Mis direcciones" onPress={() => ir('direcciones')} />
+      <Boton texto={`Comparador (${comparar.length})`} onPress={() => ir('comparador')} />
+      <Boton texto="Centro de ayuda" onPress={() => ir('ayuda')} />
+    </ScrollView>
+  );
+
   const secciones = {
-    catalogo: renderCatalogo, detalle: renderDetalle, favoritos: renderFavoritos,
-    carrito: renderCarrito, historial: renderHistorial, vendedor: renderVendedor,
+    catalogo: renderCatalogo, detalle: renderDetalle, favoritos: renderFavoritos, comparador: renderComparador,
+    carrito: renderCarrito, historial: renderHistorial, notificaciones: renderNotificaciones,
+    direcciones: renderDirecciones, ayuda: renderAyuda, mas: renderMas,
   };
 
   const tabs = [
     ['catalogo', 'Catálogo'],
     ['favoritos', `Favoritos (${favoritos.length})`],
     ['carrito', `Carrito (${unidades})`],
-    ['historial', 'Historial'],
-    ['vendedor', 'Vendedor'],
+    ['historial', 'Pedidos'],
+    ['mas', 'Más'],
   ];
+  const origen = pantalla === 'detalle' ? previa : pantalla;
+  const tabActiva = ['comparador', 'direcciones', 'ayuda'].includes(origen) ? 'mas' : origen;
 
   /* ============ RENDER PRINCIPAL ============ */
   return (
@@ -500,10 +919,13 @@ export default function App() {
       <StatusBar barStyle="light-content" />
       <View style={s.header}>
         <Logo />
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={s.marca}>{MARCA.nombre}</Text>
           <Text style={s.eslogan}>{MARCA.eslogan}</Text>
         </View>
+        <Pressable onPress={() => ir('notificaciones')} hitSlop={8}>
+          <Text style={s.avisos}>Avisos{sinLeer > 0 ? ` (${sinLeer})` : ''}</Text>
+        </Pressable>
       </View>
 
       {toast && (
@@ -516,9 +938,9 @@ export default function App() {
 
       <View style={s.tabbar}>
         {tabs.map(([key, label]) => {
-          const activa = pantalla === key || (pantalla === 'detalle' && key === previa);
+          const activa = tabActiva === key;
           return (
-            <Pressable key={key} style={[s.tab, activa && { borderTopWidth: 3, borderColor: MARCA.color1 }]} onPress={() => { ir(key); setPedidoSel(null); }}>
+            <Pressable key={key} style={[s.tab, activa && { borderColor: MARCA.color1 }]} onPress={() => ir(key)}>
               <Text style={[s.tabTxt, activa && { color: MARCA.color1, fontWeight: '800' }]}>{label}</Text>
             </Pressable>
           );
@@ -539,14 +961,6 @@ function Logo() {
   );
 }
 
-function Chip({ texto, activo, onPress }) {
-  return (
-    <Pressable onPress={onPress} style={[s.chip, activo && { backgroundColor: MARCA.color1 }]}>
-      <Text style={{ color: activo ? '#fff' : '#334155', fontWeight: '600', fontSize: 12 }}>{texto}</Text>
-    </Pressable>
-  );
-}
-
 function Foto({ producto, tam = 60 }) {
   const [fallo, setFallo] = useState(false);
   const caja = { width: tam, height: tam, borderRadius: 12, backgroundColor: '#CCFBF1', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' };
@@ -559,13 +973,18 @@ function Foto({ producto, tam = 60 }) {
   );
 }
 
+function Chip({ texto, activo, onPress }) {
+  return (
+    <Pressable onPress={onPress} style={[s.chip, activo && { backgroundColor: MARCA.color1 }]}>
+      <Text style={{ color: activo ? '#fff' : '#334155', fontWeight: '600', fontSize: 12 }}>{texto}</Text>
+    </Pressable>
+  );
+}
+
 function Boton({ texto, onPress, tipo, deshabilitado }) {
   const sec = tipo === 'sec';
   return (
-    <Pressable
-      onPress={onPress}
-      style={[s.boton, sec && s.botonSec, deshabilitado && { opacity: 0.4 }]}
-    >
+    <Pressable onPress={onPress} style={[s.boton, sec && s.botonSec, deshabilitado && { opacity: 0.4 }]}>
       <Text style={{ color: sec ? MARCA.color1 : '#fff', fontWeight: '700' }}>{texto}</Text>
     </Pressable>
   );
@@ -574,7 +993,7 @@ function Boton({ texto, onPress, tipo, deshabilitado }) {
 function Vacio({ texto, accion, onAccion }) {
   return (
     <View style={s.centro}>
-      <Text style={[s.subtitulo, { marginVertical: 8 }]}>{texto}</Text>
+      <Text style={[s.subtitulo, { marginVertical: 8, textAlign: 'center' }]}>{texto}</Text>
       {accion && <Boton texto={accion} onPress={onAccion} />}
     </View>
   );
@@ -601,6 +1020,7 @@ const s = StyleSheet.create({
   logoTxt: { fontWeight: '900', fontSize: 18, color: '#fff' },
   marca: { color: '#fff', fontSize: 20, fontWeight: '800' },
   eslogan: { color: '#CCFBF1', fontSize: 12 },
+  avisos: { color: '#fff', fontWeight: '700', fontSize: 13 },
   contenido: { flex: 1, padding: 12 },
   tabbar: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: 8 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderTopWidth: 3, borderColor: 'transparent' },
@@ -609,8 +1029,11 @@ const s = StyleSheet.create({
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 10, padding: 10, marginBottom: 8 },
   fila: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 8, gap: 6 },
   chip: { backgroundColor: '#E2E8F0', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, elevation: 1 },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 1 },
+  cardFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardAcciones: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   cardTitulo: { fontSize: 16, fontWeight: '700' },
+  link: { color: MARCA.color1, fontWeight: '700', fontSize: 12 },
   gris: { color: '#64748B', fontSize: 12 },
   precio: { color: MARCA.color1, fontWeight: '800', fontSize: 16 },
   titulo: { fontSize: 22, fontWeight: '800' },
